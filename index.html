@@ -155,8 +155,8 @@ section{padding:35px 20px;max-width:480px;margin:0 auto;position:relative}
   </div>
   <div class="full-section-inner">
     <div class="invitation-card fade-in">
-      <div class="section-title" style="text-transform:uppercase;font-size:clamp(22px,5vw,28px);letter-spacing:2px;line-height:1.5">Дорогие родные<br>и близкие!</div>
-      <p class="section-text" style="margin-top:15px;text-transform:uppercase;letter-spacing:1px">
+      <div id="greetingTitle" class="section-title" style="text-transform:uppercase;font-size:clamp(22px,5vw,28px);letter-spacing:2px;line-height:1.5">Дорогие родные<br>и близкие!</div>
+      <p id="greetingText" class="section-text" style="margin-top:15px;text-transform:uppercase;letter-spacing:1px">
         С большим удовольствием приглашаем вас на замечательный праздник — нашу свадьбу.
       </p>
     </div>
@@ -282,9 +282,52 @@ section{padding:35px 20px;max-width:480px;margin:0 auto;position:relative}
 </div>
 
 <script>
+// Parse URL parameter ?to=Дорогой Дима or ?to=Дорогие Дима и Кристина
+const params=new URLSearchParams(window.location.search);
+const toParam=params.get('to');
+let guestName='';
+
+if(toParam){
+  const fullGreeting=decodeURIComponent(toParam).trim();
+  
+  // Extract name without prefix (Дорогой/Дорогая/Дорогие)
+  const prefixes=['Дорогие','Дорогой','Дорогая','дорогие','дорогой','дорогая'];
+  guestName=fullGreeting;
+  for(const p of prefixes){
+    if(fullGreeting.startsWith(p+' ')){
+      guestName=fullGreeting.substring(p.length+1);
+      break;
+    }
+  }
+  
+  // Determine вас/тебя - multiple if contains "и", "," or "&"
+  const isMultiple=fullGreeting.includes(' и ')||fullGreeting.includes(',')||fullGreeting.includes('&');
+  const inviteWord=isMultiple?'вас':'тебя';
+  
+  document.getElementById('greetingTitle').innerHTML=fullGreeting+'!';
+  document.getElementById('greetingText').innerHTML='С большим удовольствием приглашаем '+inviteWord+' на замечательный праздник — нашу свадьбу.';
+}
+
+// Scroll animations
 const observer=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.1});
 document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
-async function submitForm(){const a=document.querySelector('input[name="attendance"]:checked'),t=document.querySelector('input[name="transfer"]:checked');if(!a){alert('Пожалуйста, укажите, сможете ли вы присутствовать');return}if(!t){alert('Пожалуйста, укажите, нужен ли вам трансфер');return}const b=document.querySelector('.submit-btn');b.textContent='Отправка...';b.disabled=true;try{const r=await fetch('https://formspree.io/f/mpqjvlgl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attendance:a.value==='yes'?'Приду':'Не смогу',transfer:t.value==='yes'?'Нужен трансфер':'Доберусь сам(а)'})});if(r.ok){document.getElementById('rsvpForm').style.display='none';document.getElementById('formSuccess').classList.add('show')}else{alert('Ошибка отправки.');b.textContent='Отправить';b.disabled=false}}catch(e){alert('Ошибка соединения.');b.textContent='Отправить';b.disabled=false}}
+
+// Form submission
+async function submitForm(){
+  const a=document.querySelector('input[name="attendance"]:checked');
+  const t=document.querySelector('input[name="transfer"]:checked');
+  if(!a){alert('Пожалуйста, укажите, сможете ли вы присутствовать');return}
+  if(!t){alert('Пожалуйста, укажите, нужен ли вам трансфер');return}
+  const b=document.querySelector('.submit-btn');
+  b.textContent='Отправка...';b.disabled=true;
+  try{
+    const body={attendance:a.value==='yes'?'Приду':'Не смогу',transfer:t.value==='yes'?'Нужен трансфер':'Доберусь сам(а)'};
+    if(guestName) body.name=guestName;
+    const r=await fetch('https://formspree.io/f/mpqjvlgl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.ok){document.getElementById('rsvpForm').style.display='none';document.getElementById('formSuccess').classList.add('show')}
+    else{alert('Ошибка отправки.');b.textContent='Отправить';b.disabled=false}
+  }catch(e){alert('Ошибка соединения.');b.textContent='Отправить';b.disabled=false}
+}
 </script>
 </body>
 </html>
